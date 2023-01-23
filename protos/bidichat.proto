@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package bidichat;
+
+// The greeting service definition.
+service Chat {
+  // Sends a greeting
+  rpc Chat (stream Message) returns (stream Message) {}
+}
+
+// The request message containing the user's name.
+message Message {
+  string name = 1;
+  string message = 2;
+}
