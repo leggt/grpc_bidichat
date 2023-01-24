@@ -24,6 +24,8 @@
 #include <string>
 #include <thread>
 #include <list>
+#include <queue>
+#include <condition_variable>
 
 #include <grpc/grpc.h>
 #include <grpcpp/security/server_credentials.h>
@@ -41,39 +43,118 @@ using bidichat::Chat;
 using bidichat::Message;
 using std::chrono::system_clock;
 
-class ChatImpl;
+class ServerChatter;
 
+// ChatImpl extends some grpc 'CallbackService'. grpc calls into the 'Chat' method when a new client connects
+// I have chosen to use this class to maintain a list of all the connected clients and have added methods here 
+// for communicating between them
+class ChatImpl final : public Chat::CallbackService {
+  public:
+    void AddClient(ServerChatter* client);
+    void NewMessage(Message message);
+  private:
+    // grpc calls this method when a new client connects
+    grpc::ServerBidiReactor<Message,Message>* Chat(CallbackServerContext* context) ;
+    std::mutex mtx;
+    std::list <ServerChatter*> client_list;
+};
+
+// One instance of this per client. This is what sends and receives messages to that specific client
 class ServerChatter : public grpc::ServerBidiReactor<Message, Message> {
   public:
-  ServerChatter(ChatImpl* server):
-  server(server)
-  {
-    StartRead(&current_read);
-  }
-  void OnDone() override { delete this; }
-  // void OnWriteDone(bool /*ok*/) override { NextWrite(); }
-  void OnReadDone(bool ok) override { 
-    if (ok) 
-    {
-      StartRead(&current_read);
-    } else {
-      Finish(Status::OK);
-    }
-   }
+    ServerChatter(ChatImpl* server);
+    void OnDone() override { delete this; }
+
+    void OnWriteDone(bool ok) override; 
+    void OnReadDone(bool ok) override; 
+
+    void SendNewMessage(Message new_message);
+
+    void WriteThread();
+
   private:
-  Message current_write;
-  Message current_read;
-  ChatImpl* server;
+    std::thread writer_thread;
+    Message current_write;
+    Message current_read;
+    ChatImpl *server;
+    std::queue<Message> message_queue;
+    std::condition_variable new_messages_cond;
+    std::mutex mtx;
+    bool currently_writing;
 };
 
-class ChatImpl final : public Chat::CallbackService {
-  grpc::ServerBidiReactor<Message,Message>* Chat(CallbackServerContext* context) {
-    return new ServerChatter(this);
+
+ServerChatter::ServerChatter(ChatImpl* server):
+server(server)
+{
+  StartRead(&current_read);
+  writer_thread = std::thread(&ServerChatter::WriteThread,this);
+}
+
+void ServerChatter::WriteThread() {
+  while (true)
+  {
+  std::unique_lock<std::mutex> lock(mtx);
+  new_messages_cond.wait(lock, 
+    [this] { return !message_queue.empty() and !currently_writing; });
+
+  current_write = message_queue.front();
+  message_queue.pop();
+
+  lock.unlock();
+
+  currently_writing=true;
+
+  StartWrite(&current_write);
+  
   }
-  private:
-  std::mutex mtx;
-  std::list <ServerChatter*> client_list;
-};
+
+}
+
+void ServerChatter::OnWriteDone(bool ok) {
+  if (ok){
+    std::lock_guard<std::mutex> guard(mtx);
+    currently_writing=false;
+    new_messages_cond.notify_one();
+  }
+}
+
+
+void ServerChatter::OnReadDone(bool ok) { 
+  if (ok) 
+  {
+    server->NewMessage(current_read);
+    StartRead(&current_read);
+  } else {
+    Finish(Status::OK);
+  }
+}
+
+void ServerChatter::SendNewMessage(Message new_message)
+{
+  std::lock_guard<std::mutex> guard(mtx);
+  message_queue.push(new_message);
+  new_messages_cond.notify_one();
+}
+
+void ChatImpl::AddClient(ServerChatter* client){
+  std::lock_guard<std::mutex> guard(mtx);
+  client_list.push_back(client);
+}
+
+void ChatImpl::NewMessage(Message message){
+  std::lock_guard<std::mutex> guard(mtx);
+  for (auto client : client_list) {
+    client->SendNewMessage(message);
+  }
+}
+
+grpc::ServerBidiReactor<Message,Message>* ChatImpl::Chat(CallbackServerContext* context) {
+  ServerChatter* client = new ServerChatter(this);
+  AddClient(client);
+  return client;
+}
+
 
 int main(int argc, char** argv) {
   std::string server_address("0.0.0.0:50051");

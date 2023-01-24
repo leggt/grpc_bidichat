@@ -7,7 +7,8 @@
 #include <random>
 #include <string>
 #include <thread>
-
+#include <queue>
+#include <condition_variable>
 
 #include <grpc/grpc.h>
 #include <grpcpp/alarm.h>
@@ -17,79 +18,101 @@
 #include <grpcpp/security/credentials.h>
 #include "bidichat.grpc.pb.h"
 
+using bidichat::Chat;
+using bidichat::Message;
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
-using bidichat::Chat;
-using bidichat::Message;
 
-class Chatter : public grpc::ClientBidiReactor<Message,Message>
+class ChatClient : public grpc::ClientBidiReactor<Message, Message>
 {
-  public:
-  explicit Chatter(Chat::Stub* stub) {
-        stub->async()->Chat(&context_, this);
-        NextWrite();
-        StartRead(&current_read);
-        StartCall();
+public:
+  ChatClient(std::shared_ptr<Channel> channel, std::string name)
+      : stub_(Chat::NewStub(channel)), client_name(name)
+  {
+    stub_->async()->Chat(&context_, this);
+    StartRead(&current_read);
+    StartCall();
+
+    writer_thread = std::thread(&ChatClient::WriteThread,this);
   }
-      Status Await() {
-        std::unique_lock<std::mutex> l(mu_);
-        cv_.wait(l, [this] { return done_; });
-        return std::move(status_);
-      }
-  private:
-      void NextWrite() {
-        current_write.set_message("Sup");
-        current_write.set_name("Tim");
-        StartWrite(&current_write);
-      };
-      ClientContext context_;
-      std::mutex mu_;
-      std::condition_variable cv_;
-      Status status_;
-      bool done_ = false;
-      Message current_read;
-      Message current_write;
-};
 
-class ChatClient {
-  public:
-  ChatClient(std::shared_ptr<Channel> channel)
-      : stub_(Chat::NewStub(channel)) {
-      }
+  void OnReadDone(bool ok) {
+    if (ok)
+    {
+      std::cout<<"New message: "<<current_read.message()<<std::endl;
+      StartRead(&current_read);
+    } 
+  }
 
-  void doChat() {
-    Chatter chatter(stub_.get());
+  void WriteThread()
+  {
+    while (true)
+    {
+      std::unique_lock<std::mutex> lock(mtx);
+      new_messages_cond.wait(lock, [this]
+                             { return !message_queue.empty() and !currently_writing; });
 
-    Status status = chatter.Await();
-    if (!status.ok()) {
-      std::cout << "RouteChat rpc failed." << std::endl;
+      current_write = message_queue.front();
+      message_queue.pop();
+
+      currently_writing=true;
+
+      lock.unlock();
+
+      StartWrite(&current_write);
     }
+
+  }
+
+  void OnWriteDone(bool ok) {
+    if (ok) {
+      std::lock_guard<std::mutex> guard(mtx);
+      currently_writing=false;
+      new_messages_cond.notify_one();
+    }
+
+  }
+
+  void SendMessage(std::string message) 
+  {
+    std::lock_guard<std::mutex> guard(mtx);
+    Message new_message;
+    new_message.set_name(client_name);
+    new_message.set_message(message);
+    message_queue.push(new_message);
+    new_messages_cond.notify_one();
   }
 
   private:
-  std::unique_ptr<Chat::Stub> stub_;
+    ClientContext context_;
+    std::unique_ptr<Chat::Stub> stub_;
 
-};
+    std::thread writer_thread;
 
-int main(int argc, char** argv) {
-  // Expect only arg: --db_path=path/to/route_guide_db.json.
-  ChatClient chatclient(
-      grpc::CreateChannel("localhost:50051",
-                          grpc::InsecureChannelCredentials())
-      );
+    std::string client_name;
+    Message current_read;
+    Message current_write;
+    std::queue<Message> message_queue;
+    std::condition_variable new_messages_cond;
+    std::mutex mtx;
+    bool currently_writing;
 
-  std::thread chatter(&ChatClient::doChat,&chatclient);
-  // while(true) {
-  //   std::string str_msg;
-  //   std::cin >> str_msg;
-  //   std::cout << "Sending message: " << str_msg << std::endl;
-  // }
+  };
 
-  chatter.join();
+  int main(int argc, char **argv)
+  {
+    ChatClient chatclient(
+        grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials()),
+        "client name"
+        );
 
+    // Send some junk
+    chatclient.SendMessage("sup");
+    chatclient.SendMessage("yo");
+    chatclient.SendMessage("what is grpc?");
 
+    sleep(5);
 
-
-  return 0;
-}
+    return 0;
+  }
