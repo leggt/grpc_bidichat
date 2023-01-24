@@ -40,7 +40,7 @@ public:
   void OnReadDone(bool ok) {
     if (ok)
     {
-      std::cout<<"New message: "<<current_read.message()<<std::endl;
+      std::cout<<"(on client "<<client_name<<") message from "<<current_read.name()<<": "<<current_read.message()<<std::endl;
       StartRead(&current_read);
     } 
   }
@@ -102,9 +102,15 @@ public:
 
   int main(int argc, char **argv)
   {
+    std::string client_name = "client";
+
+    if (argc > 1) {
+      client_name = argv[1];
+    }
+
     ChatClient chatclient(
         grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials()),
-        "client name"
+        client_name
         );
 
     // Send some junk
@@ -112,7 +118,7 @@ public:
     chatclient.SendMessage("yo");
     chatclient.SendMessage("what is grpc?");
 
-    sleep(5);
+    sleep(100);
 
     return 0;
   }

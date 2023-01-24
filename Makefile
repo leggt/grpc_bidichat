@@ -104,5 +104,5 @@ debug-client:
 debug-server:
 	GRPC_TRACE=$(GRPC_TRACE) GRPC_VERBOSITY=$(GRPC_VERBOSITY) ./bidichat-server > server.log 2>&1
 
-run:
-	./bidichat-server& ./bidichat-client&  sleep 2; pgrep bidichat-server | xargs kill -9; pgrep bidichat-client | xargs kill -9
+test:
+	./bidichat-server& sleep 4; ./bidichat-client jim& ./bidichat-client bob& sleep 5; pgrep bidichat-server | xargs kill -9; pgrep bidichat-client | xargs kill -9
