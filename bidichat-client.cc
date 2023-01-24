@@ -1,10 +1,6 @@
-
-#include <chrono>
 #include <condition_variable>
 #include <iostream>
-#include <memory>
 #include <mutex>
-#include <random>
 #include <string>
 #include <thread>
 #include <queue>
@@ -34,15 +30,16 @@ public:
     StartRead(&current_read);
     StartCall();
 
-    writer_thread = std::thread(&ChatClient::WriteThread,this);
+    writer_thread = std::thread(&ChatClient::WriteThread, this);
   }
 
-  void OnReadDone(bool ok) {
+  void OnReadDone(bool ok)
+  {
     if (ok)
     {
-      std::cout<<"(on client "<<client_name<<") message from "<<current_read.name()<<": "<<current_read.message()<<std::endl;
+      std::cout << "(on client " << client_name << ") message from " << current_read.name() << ": " << current_read.message() << std::endl;
       StartRead(&current_read);
-    } 
+    }
   }
 
   void WriteThread()
@@ -56,25 +53,25 @@ public:
       current_write = message_queue.front();
       message_queue.pop();
 
-      currently_writing=true;
+      currently_writing = true;
 
       lock.unlock();
 
       StartWrite(&current_write);
     }
-
   }
 
-  void OnWriteDone(bool ok) {
-    if (ok) {
+  void OnWriteDone(bool ok)
+  {
+    if (ok)
+    {
       std::lock_guard<std::mutex> guard(mtx);
-      currently_writing=false;
+      currently_writing = false;
       new_messages_cond.notify_one();
     }
-
   }
 
-  void SendMessage(std::string message) 
+  void SendMessage(std::string message)
   {
     std::lock_guard<std::mutex> guard(mtx);
     Message new_message;
@@ -84,41 +81,40 @@ public:
     new_messages_cond.notify_one();
   }
 
-  private:
-    ClientContext context_;
-    std::unique_ptr<Chat::Stub> stub_;
+private:
+  ClientContext context_;
+  std::unique_ptr<Chat::Stub> stub_;
 
-    std::thread writer_thread;
+  std::thread writer_thread;
 
-    std::string client_name;
-    Message current_read;
-    Message current_write;
-    std::queue<Message> message_queue;
-    std::condition_variable new_messages_cond;
-    std::mutex mtx;
-    bool currently_writing;
+  std::string client_name;
+  Message current_read;
+  Message current_write;
+  std::queue<Message> message_queue;
+  std::condition_variable new_messages_cond;
+  std::mutex mtx;
+  bool currently_writing;
+};
 
-  };
+int main(int argc, char **argv)
+{
+  std::string client_name = "client";
 
-  int main(int argc, char **argv)
+  if (argc > 1)
   {
-    std::string client_name = "client";
-
-    if (argc > 1) {
-      client_name = argv[1];
-    }
-
-    ChatClient chatclient(
-        grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials()),
-        client_name
-        );
-
-    // Send some junk
-    chatclient.SendMessage("sup");
-    chatclient.SendMessage("yo");
-    chatclient.SendMessage("what is grpc?");
-
-    sleep(100);
-
-    return 0;
+    client_name = argv[1];
   }
+
+  ChatClient chatclient(
+      grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials()),
+      client_name);
+
+  // Send some junk
+  chatclient.SendMessage("sup");
+  chatclient.SendMessage("yo");
+  chatclient.SendMessage("what is grpc?");
+
+  sleep(100);
+
+  return 0;
+}
