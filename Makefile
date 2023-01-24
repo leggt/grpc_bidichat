@@ -1,6 +1,6 @@
 HOST_SYSTEM = $(shell uname | cut -f 1 -d_)
 SYSTEM ?= $(HOST_SYSTEM)
-CXX = g++
+CXX = g++ -g
 CPPFLAGS += `pkg-config --cflags protobuf grpc`
 CXXFLAGS += -std=c++14
 ifeq ($(SYSTEM),Darwin)
@@ -94,3 +94,15 @@ endif
 ifneq ($(SYSTEM_OK),true)
 	@false
 endif
+
+GRPC_TRACE:=all
+GRPC_VERBOSITY:=DEBUG
+
+debug-client:
+	GRPC_TRACE=$(GRPC_TRACE) GRPC_VERBOSITY=$(GRPC_VERBOSITY) ./bidichat-client > client.log 2>&1
+
+debug-server:
+	GRPC_TRACE=$(GRPC_TRACE) GRPC_VERBOSITY=$(GRPC_VERBOSITY) ./bidichat-server > server.log 2>&1
+
+run:
+	./bidichat-server& ./bidichat-client&  sleep 2; pgrep bidichat-server | xargs kill -9; pgrep bidichat-client | xargs kill -9

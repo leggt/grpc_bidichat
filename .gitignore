@@ -1,0 +1,6 @@
+*o
+*log
+bidichat.grpc.*
+bidichat.pb.*
+bidichat-server
+bidichat-client
