@@ -2,5 +2,7 @@
 *log
 bidichat.grpc.*
 bidichat.pb.*
-bidichat-server
-bidichat-client
+bidichat-async-server
+bidichat-async-client
+bidichat-callback-server
+bidichat-callback-client

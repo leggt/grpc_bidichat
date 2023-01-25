@@ -22,12 +22,18 @@ PROTOS_PATH = protos
 
 vpath %.proto $(PROTOS_PATH)
 
-all: system-check bidichat-server bidichat-client
+all: system-check bidichat-callback-server bidichat-callback-client bidichat-async-server bidichat-async-client
 
-bidichat-client: bidichat.pb.o bidichat.grpc.pb.o bidichat-client.o
+bidichat-callback-client: bidichat.pb.o bidichat.grpc.pb.o bidichat-callback-client.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
-bidichat-server: bidichat.pb.o bidichat.grpc.pb.o bidichat-server.o
+bidichat-callback-server: bidichat.pb.o bidichat.grpc.pb.o bidichat-callback-server.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
+bidichat-async-client: bidichat.pb.o bidichat.grpc.pb.o bidichat-async-client.o
+	$(CXX) $^ $(LDFLAGS) -o $@
+
+bidichat-async-server: bidichat.pb.o bidichat.grpc.pb.o bidichat-async-server.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
@@ -39,7 +45,7 @@ bidichat-server: bidichat.pb.o bidichat.grpc.pb.o bidichat-server.o
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h bidichat-server bidichat-client
+	rm -f *.o *.pb.cc *.pb.h bidichat-callback-server bidichat-callback-client bidichat-async-server bidichat-async-client
 
 
 # The following is to test your system and ensure a smoother experience.
@@ -105,4 +111,4 @@ debug-server:
 	GRPC_TRACE=$(GRPC_TRACE) GRPC_VERBOSITY=$(GRPC_VERBOSITY) ./bidichat-server > server.log 2>&1
 
 test:
-	./bidichat-server& sleep 4; ./bidichat-client jim& ./bidichat-client bob& sleep 5; pgrep bidichat-server | xargs kill -9; pgrep bidichat-client | xargs kill -9
+	./bidichat-async-server& sleep 4; ./bidichat-callback-client jim& ./bidichat-callback-client bob& sleep 5; pgrep -f bidichat-async-server | xargs kill -9

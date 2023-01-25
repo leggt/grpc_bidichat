@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch bidichat-server",
+            "name": "(gdb) Launch bidichat-async-server",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bidichat-server",
+            "program": "${workspaceFolder}/bidichat-async-server",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
