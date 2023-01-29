@@ -10,7 +10,7 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
-#include "bidichat.grpc.pb.h"
+#include "protos/bidichat.grpc.pb.h"
 
 using bidichat::Chat;
 using bidichat::Message;

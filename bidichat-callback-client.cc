@@ -12,7 +12,7 @@
 #include <grpcpp/client_context.h>
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
-#include "bidichat.grpc.pb.h"
+#include "protos/bidichat.grpc.pb.h"
 
 using bidichat::Chat;
 using bidichat::Message;

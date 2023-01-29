@@ -16,17 +16,29 @@ TEST_EXEC := test_runner
 
 all: $(TEST_EXEC)
 
-%.grpc.pb.cc:
-	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=. --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $*.proto
+SOURCE = $(wildcard *.cc)
+PROTOS = $(wildcard $(PROTOS_PATH)/*proto)
+OBJECTS = $(SOURCE:.cc=.o) $(PROTOS:.proto=.pb.o) $(PROTOS:.proto=.grpc.pb.o)
 
-%.pb.cc:
-	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $*.proto
+# Seems necessary to override the built-in target for .o 
+.SUFFIXES:
 
-%.o : %.cc
+.PRECIOUS: $(PROTOS_PATH)/%.grpc.pb.cc
+$(PROTOS_PATH)/%.grpc.pb.cc: $(PROTOS)
+	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=$(PROTOS_PATH) --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $*.proto
+
+.PRECIOUS: $(PROTOS_PATH)/%.pb.cc
+$(PROTOS_PATH)/%.pb.cc: $(PROTOS)
+	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=$(PROTOS_PATH) $*.proto
+
+$(PROTOS_PATH)/%.pb.o: $($@:.o=.cc)
+$(PROTOS_PATH)/%.grpc.pb.o: $($@:.o=.cc)
+
+%.o : %.cc $(PROTOS:.proto=.grpc.pb.cc) $(PROTOS:.proto=.pb.cc)
 	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< -o $@
 
-$(TEST_EXEC): $(TEST_EXEC).o $(OBJS) bidichat.pb.o bidichat.grpc.pb.o
+$(TEST_EXEC): $(OBJECTS) 
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h $(TEST_EXEC)
+	rm -f *.o $(PROTOS_PATH)/*.pb.cc $(PROTOS_PATH)/*.pb.h $(PROTOS_PATH)/*.o $(TEST_EXEC)
