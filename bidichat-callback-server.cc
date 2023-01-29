@@ -140,6 +140,7 @@ grpc::ServerBidiReactor<Message, Message> *ChatServer::Chat(CallbackServerContex
   return client;
 }
 
+/*
 int main(int argc, char **argv)
 {
   std::string server_address("0.0.0.0:50051");
@@ -154,3 +155,4 @@ int main(int argc, char **argv)
 
   return 0;
 }
+*/

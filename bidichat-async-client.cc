@@ -96,6 +96,7 @@ private:
   bool currently_writing;
 };
 
+/*
 int main(int argc, char **argv)
 {
   std::string client_name = "client";
@@ -118,3 +119,4 @@ int main(int argc, char **argv)
 
   return 0;
 }
+*/

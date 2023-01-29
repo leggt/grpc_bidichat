@@ -155,6 +155,7 @@ void ChatServer::Run()
   }
 }
 
+/*
 int main(int argc, char **argv)
 {
   ChatServer server;
@@ -162,3 +163,4 @@ int main(int argc, char **argv)
 
   return 0;
 }
+*/
