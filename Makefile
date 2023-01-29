@@ -40,5 +40,8 @@ $(PROTOS_PATH)/%.grpc.pb.o: $($@:.o=.cc)
 $(TEST_EXEC): $(OBJECTS) 
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
+test: $(TEST_EXEC)
+	./$(TEST_EXEC)
+
 clean:
 	rm -f *.o $(PROTOS_PATH)/*.pb.cc $(PROTOS_PATH)/*.pb.h $(PROTOS_PATH)/*.o $(TEST_EXEC)

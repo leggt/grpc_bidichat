@@ -15,6 +15,8 @@
 #include <grpcpp/server_context.h>
 #include "protos/bidichat.grpc.pb.h"
 
+namespace AsyncServer {
+
 using bidichat::Chat;
 using bidichat::Message;
 using grpc::CallbackServerContext;
@@ -76,4 +78,5 @@ private:
   ServerAsyncReaderWriter<Message, Message> responder_;
   ChatServer *server;
 };
+}
 #endif

@@ -14,6 +14,8 @@
 
 #include "bidichat-async-server.h"
 
+namespace AsyncServer {
+
 using bidichat::Chat;
 using bidichat::Message;
 using grpc::CallbackServerContext;
@@ -104,6 +106,7 @@ void ChatServer::Run()
       delete ct;
     }
   }
+}
 }
 
 /*
