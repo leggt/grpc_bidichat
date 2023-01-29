@@ -4,6 +4,16 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "test",
+            "type": "shell",
+            "command": "${workspaceFolder}/test_runner",
+                  "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "dependsOn": "make"
+        },
+        {
             "label": "make",
             "type": "shell",
             "command": "make",
