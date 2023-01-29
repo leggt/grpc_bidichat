@@ -13,18 +13,19 @@
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 #include "protos/bidichat.grpc.pb.h"
+#include "bidichat-callback-client.h"
 
+namespace CallbackClient 
+{
 using bidichat::Chat;
 using bidichat::Message;
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
 
-class ChatClient : public grpc::ClientBidiReactor<Message, Message>
-{
-public:
-  ChatClient(std::shared_ptr<Channel> channel, std::string name)
-      : stub_(Chat::NewStub(channel)), client_name(name)
+  ChatClient::ChatClient(std::string server, std::string name)
+      : stub_(Chat::NewStub( grpc::CreateChannel(server, grpc::InsecureChannelCredentials()))),
+      client_name(name)
   {
     stub_->async()->Chat(&context_, this);
     StartRead(&current_read);
@@ -33,7 +34,15 @@ public:
     writer_thread = std::thread(&ChatClient::WriteThread, this);
   }
 
-  void OnReadDone(bool ok)
+  ChatClient::~ChatClient()
+  {
+    std::lock_guard<std::mutex> guard(mtx);
+    shutdown_flag = true;
+    new_messages_cond.notify_one();
+
+  }
+
+  void ChatClient::OnReadDone(bool ok)
   {
     if (ok)
     {
@@ -42,13 +51,18 @@ public:
     }
   }
 
-  void WriteThread()
+  void ChatClient::WriteThread()
   {
     while (true)
     {
       std::unique_lock<std::mutex> lock(mtx);
       new_messages_cond.wait(lock, [this]
-                             { return !message_queue.empty() and !currently_writing; });
+                             { return shutdown_flag or (!message_queue.empty() and !currently_writing); });
+
+
+      if (shutdown_flag) {
+        break;
+      }
 
       current_write = message_queue.front();
       message_queue.pop();
@@ -61,7 +75,7 @@ public:
     }
   }
 
-  void OnWriteDone(bool ok)
+  void ChatClient::OnWriteDone(bool ok)
   {
     if (ok)
     {
@@ -71,7 +85,7 @@ public:
     }
   }
 
-  void SendMessage(std::string message)
+  void ChatClient::SendMessage(std::string message)
   {
     std::lock_guard<std::mutex> guard(mtx);
     Message new_message;
@@ -81,20 +95,8 @@ public:
     new_messages_cond.notify_one();
   }
 
-private:
-  ClientContext context_;
-  std::unique_ptr<Chat::Stub> stub_;
 
-  std::thread writer_thread;
-
-  std::string client_name;
-  Message current_read;
-  Message current_write;
-  std::queue<Message> message_queue;
-  std::condition_variable new_messages_cond;
-  std::mutex mtx;
-  bool currently_writing;
-};
+}
 
 /*
 int main(int argc, char **argv)

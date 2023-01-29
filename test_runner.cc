@@ -10,6 +10,7 @@
 #include <cppunit/extensions/TestFactoryRegistry.h>
 
 #include "bidichat-async-server.h"
+#include "bidichat-callback-client.h"
 
 using CPPUNIT_NS::TestCase;
 using CPPUNIT_NS::TestResult;
@@ -31,6 +32,16 @@ protected:
   void testAsyncServer(void) {
     AsyncServer::ChatServer server;
     std::thread server_thread([&server]{server.Run();});
+
+  CallbackClient::ChatClient chatclient( "localhost:50051", "test_client");
+
+  // Send some junk
+  chatclient.SendMessage("sup");
+  // Problem!
+  chatclient.SendMessage("yo");
+  chatclient.SendMessage("what is grpc?");
+
+  sleep(5);
   }
 };
 

@@ -1,31 +1,17 @@
 #ifndef BIDICHATASYNCSERVER_H
 #define BIDICHATASYNCSERVER_H
 
-#include <iostream>
-#include <string>
-#include <thread>
 #include <list>
 #include <queue>
-#include <condition_variable>
 
 #include <grpc/grpc.h>
 #include <grpcpp/security/server_credentials.h>
 #include <grpcpp/server.h>
-#include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
+
 #include "protos/bidichat.grpc.pb.h"
 
 namespace AsyncServer {
-
-using bidichat::Chat;
-using bidichat::Message;
-using grpc::CallbackServerContext;
-using grpc::Server;
-using grpc::ServerAsyncReaderWriter;
-using grpc::ServerBuilder;
-using grpc::ServerCompletionQueue;
-using grpc::ServerContext;
-using grpc::Status;
 
 
 class CallData;
@@ -54,7 +40,7 @@ struct CallTag
 class ChatServer
 {
 public:
-  void HandleNewMessage(Message message);
+  void HandleNewMessage(bidichat::Message message);
   void Run();
   void AddClient(CallData *client) { client_list.push_back(client); }
   void RemoveClient(CallData *client) { client_list.remove(client); }
@@ -66,16 +52,16 @@ private:
 class CallData
 {
 public:
-  CallData(Chat::AsyncService *service, ServerCompletionQueue *cq, ChatServer *server);
+  CallData(bidichat::Chat::AsyncService *service, grpc::ServerCompletionQueue *cq, ChatServer *server);
   void Proceed(CallTag *tag);
-  void SendMessage(Message message);
+  void SendMessage(bidichat::Message message);
 
 private:
-  Chat::AsyncService *service_;
-  ServerCompletionQueue *cq_;
-  ServerContext ctx_;
-  Message current_read;
-  ServerAsyncReaderWriter<Message, Message> responder_;
+  bidichat::Chat::AsyncService *service_;
+  grpc::ServerCompletionQueue *cq_;
+  grpc::ServerContext ctx_;
+  bidichat::Message current_read;
+  grpc::ServerAsyncReaderWriter<bidichat::Message, bidichat::Message> responder_;
   ChatServer *server;
 };
 }
