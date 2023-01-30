@@ -36,10 +36,14 @@ using grpc::Status;
 
   ChatClient::~ChatClient()
   {
+    {
     std::lock_guard<std::mutex> guard(mtx);
     shutdown_flag = true;
+    }
+
     new_messages_cond.notify_one();
 
+    writer_thread.join();
   }
 
   void ChatClient::OnReadDone(bool ok)

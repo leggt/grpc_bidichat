@@ -42,11 +42,14 @@ class ChatServer
 public:
   void HandleNewMessage(bidichat::Message message);
   void Run();
+  void Shutdown();
   void AddClient(CallData *client) { client_list.push_back(client); }
   void RemoveClient(CallData *client) { client_list.remove(client); }
 
 private:
   std::list<CallData *> client_list;
+  std::unique_ptr<grpc::Server> server;
+  std::unique_ptr<grpc::ServerCompletionQueue> cq; 
 };
 
 class CallData

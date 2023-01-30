@@ -73,6 +73,12 @@ void ChatServer::HandleNewMessage(Message message)
   }
 }
 
+void ChatServer::Shutdown()
+{
+  server->Shutdown();
+  cq->Shutdown();
+}
+
 void ChatServer::Run()
 {
   std::string server_address("0.0.0.0:50051");
@@ -81,8 +87,8 @@ void ChatServer::Run()
   ServerBuilder builder;
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
-  std::unique_ptr<grpc::ServerCompletionQueue> cq = builder.AddCompletionQueue();
-  std::unique_ptr<Server> server(builder.BuildAndStart());
+  cq = builder.AddCompletionQueue();
+  server = builder.BuildAndStart();
   std::cout << "Server listening on " << server_address << std::endl;
 
   new CallData(&service, cq.get(), this);
@@ -91,7 +97,10 @@ void ChatServer::Run()
   {
     void *tag;
     bool ok;
-    GPR_ASSERT(cq->Next(&tag, &ok));
+    if(!cq->Next(&tag, &ok))
+    {
+      break;
+    }
 
     CallTag *ct = static_cast<CallTag *>(tag);
     CallData *calldata = ct->calldata;
@@ -104,6 +113,7 @@ void ChatServer::Run()
       RemoveClient(calldata);
       delete calldata;
       delete ct;
+      break;
     }
   }
 }

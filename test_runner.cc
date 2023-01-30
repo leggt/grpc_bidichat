@@ -2,12 +2,13 @@
 #include <unistd.h>
 #include <thread>
 
-#include <cppunit/TestRunner.h>
+#include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/TestResult.h>
 #include <cppunit/TestResultCollector.h>
 #include <cppunit/extensions/HelperMacros.h>
-#include <cppunit/BriefTestProgressListener.h>
+// #include <cppunit/BriefTestProgressListener.h>
 #include <cppunit/extensions/TestFactoryRegistry.h>
+#include <cppunit/CompilerOutputter.h>
 
 #include "bidichat-async-server.h"
 #include "bidichat-callback-client.h"
@@ -15,8 +16,13 @@
 using CPPUNIT_NS::TestCase;
 using CPPUNIT_NS::TestResult;
 using CPPUNIT_NS::TestResultCollector;
-using CPPUNIT_NS::TestRunner;
+using CPPUNIT_NS::TextUi::TestRunner;
 using CPPUNIT_NS::TestFactoryRegistry;
+
+class TestAsyncServer : public AsyncServer::ChatServer
+{
+
+};
 
 class Test : public TestCase
 {
@@ -30,18 +36,18 @@ public:
 
 protected:
   void testAsyncServer(void) {
-    AsyncServer::ChatServer server;
+    TestAsyncServer server;
     std::thread server_thread([&server]{server.Run();});
 
   CallbackClient::ChatClient chatclient( "localhost:50051", "test_client");
 
   // Send some junk
   chatclient.SendMessage("sup");
-  // Problem!
   chatclient.SendMessage("yo");
   chatclient.SendMessage("what is grpc?");
 
-  sleep(5);
+  server.Shutdown();
+  server_thread.join();
   }
 };
 
@@ -54,9 +60,18 @@ int main( int ac, char **av )
   TestResultCollector result;
   controller.addListener( &result );        
 
+  CPPUNIT_NS::TestResultCollector collectedresults;
+  controller.addListener(&collectedresults);
+
+  // CPPUNIT_NS::BriefTestProgressListener progress;
+  // controller.addListener( &progress );   
+
   TestRunner runner;
   runner.addTest( TestFactoryRegistry::getRegistry().makeTest() );
   runner.run( controller );
+
+  CPPUNIT_NS::CompilerOutputter compileroutputter(&collectedresults, std::cerr);
+  compileroutputter.write();
 
   return result.wasSuccessful() ? 0 : 1;
 }
